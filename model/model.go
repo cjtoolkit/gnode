@@ -67,6 +67,8 @@ func os() string {
 	switch runtime.GOOS {
 	case "windows":
 		return "win"
+	case "solaris", "illumos":
+		return "sunos"
 	}
 
 	return runtime.GOOS
