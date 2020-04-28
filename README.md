@@ -1,6 +1,6 @@
 # GNODE
 
-Project Level NodeJs version management.
+Project Level NodeJs version manager.
 
 .gnode
 ```
