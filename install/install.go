@@ -7,6 +7,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -73,14 +74,14 @@ func tarInstall(file io.Reader) {
 		case tar.TypeDir:
 			// create a directory
 			fmt.Println("creating:   " + hdr.Name)
-			err = os.MkdirAll(hdr.Name, 0755)
+			err = os.Mkdir(hdr.Name, hdr.FileInfo().Mode())
 			if err != nil {
 				log.Fatal(err)
 			}
 		case tar.TypeReg:
 			// write a file
 			fmt.Println("extracting: " + hdr.Name)
-			w, err := os.Create(hdr.Name)
+			w, err := os.OpenFile(hdr.Name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, hdr.FileInfo().Mode())
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -88,8 +89,10 @@ func tarInstall(file io.Reader) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			w.Chmod(hdr.FileInfo().Mode())
-			w.Close()
+			err = w.Close()
+			if err != nil {
+				panic(err)
+			}
 		case tar.TypeSymlink, tar.TypeLink:
 			fmt.Println("Creating Symlink: " + hdr.Name)
 			err = os.Symlink(hdr.Linkname, hdr.Name)
@@ -101,62 +104,54 @@ func tarInstall(file io.Reader) {
 }
 
 func zipInstall(file io.Reader) {
-	buf := &bytes.Buffer{}
-	_, err := io.Copy(buf, file)
+	b, err := ioutil.ReadAll(file)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	r, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
-	buf.Reset()
+	r, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	dest, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// Closure to address file descriptors issue with all the deferred .Close() methods
-	extractAndWriteFile := func(f *zip.File) error {
+	for _, f := range r.File {
 		rc, err := f.Open()
 		if err != nil {
 			log.Fatal(err)
 		}
-		defer func() {
-			if err := rc.Close(); err != nil {
-				panic(err)
-			}
-		}()
 
 		path := filepath.Join(dest, f.Name)
 
 		if f.FileInfo().IsDir() {
+			// create a directory
 			fmt.Println("creating:   " + path)
-			os.MkdirAll(path, f.Mode())
+			err = os.Mkdir(path, f.Mode())
+			if err != nil {
+				log.Fatal(err)
+			}
 		} else {
+			// write a file
 			fmt.Println("extracting: " + path)
-			os.MkdirAll(filepath.Dir(path), f.Mode())
 			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 			if err != nil {
 				log.Fatal(err)
 			}
-			defer func() {
-				if err := f.Close(); err != nil {
-					panic(err)
-				}
-			}()
-
 			_, err = io.Copy(f, rc)
 			if err != nil {
 				log.Fatal(err)
 			}
+			err = f.Close()
+			if err != nil {
+				panic(err)
+			}
 		}
-		return nil
-	}
-
-	for _, f := range r.File {
-		err := extractAndWriteFile(f)
-		if err != nil {
-			log.Fatal(err)
+		if err := rc.Close(); err != nil {
+			panic(err)
 		}
 	}
 }
@@ -167,5 +162,8 @@ func installModule(sdkPath, binPath string, data model.NodeDist, module model.Mo
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
-	cmd.Run()
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
 }

@@ -55,5 +55,8 @@ func main() {
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
-	cmd.Run()
+	err = cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
