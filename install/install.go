@@ -26,12 +26,14 @@ func Install(sdkpath, binPath string, data model.NodeDist) {
 
 	curPath, err := os.Getwd()
 	if err != nil {
+		cleanSdk(sdkpath)
 		log.Fatal(err)
 	}
 	defer os.Chdir(curPath)
 
 	err = os.Chdir(sdkpath)
 	if err != nil {
+		cleanSdk(sdkpath)
 		log.Fatal(err)
 	}
 
@@ -39,24 +41,33 @@ func Install(sdkpath, binPath string, data model.NodeDist) {
 	client.Timeout = 30 * time.Second
 	res, err := client.Get(data.DistUrl())
 	if err != nil {
+		cleanSdk(sdkpath)
 		log.Fatal(err)
 	}
 
 	if data.Ext() == "zip" {
-		zipInstall(res.Body)
+		err = zipInstall(res.Body)
 	} else {
-		tarInstall(res.Body)
+		err = tarInstall(res.Body)
+	}
+	if err != nil {
+		cleanSdk(sdkpath)
+		log.Fatal(err)
 	}
 
 	for _, module := range data.Modules {
-		installModule(sdkpath, binPath, data, module)
+		err = installModule(sdkpath, binPath, data, module)
+		if err != nil {
+			cleanSdk(sdkpath)
+			log.Fatal(err)
+		}
 	}
 }
 
-func tarInstall(file io.Reader) {
+func tarInstall(file io.Reader) error {
 	r, err := gzip.NewReader(file)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	tr := tar.NewReader(r)
@@ -68,7 +79,7 @@ func tarInstall(file io.Reader) {
 			break
 		}
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		switch hdr.Typeflag {
 		case tar.TypeDir:
@@ -76,18 +87,18 @@ func tarInstall(file io.Reader) {
 			fmt.Println("creating:   " + hdr.Name)
 			err = os.Mkdir(hdr.Name, hdr.FileInfo().Mode())
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 		case tar.TypeReg:
 			// write a file
 			fmt.Println("extracting: " + hdr.Name)
 			w, err := os.OpenFile(hdr.Name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, hdr.FileInfo().Mode())
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 			_, err = io.Copy(w, tr)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 			err = w.Close()
 			if err != nil {
@@ -97,32 +108,33 @@ func tarInstall(file io.Reader) {
 			fmt.Println("Creating Symlink: " + hdr.Name)
 			err = os.Symlink(hdr.Linkname, hdr.Name)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 		}
 	}
+	return nil
 }
 
-func zipInstall(file io.Reader) {
+func zipInstall(file io.Reader) error {
 	b, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	r, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	dest, err := os.Getwd()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	for _, f := range r.File {
 		rc, err := f.Open()
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		path := filepath.Join(dest, f.Name)
@@ -132,38 +144,48 @@ func zipInstall(file io.Reader) {
 			fmt.Println("creating:   " + path)
 			err = os.Mkdir(path, f.Mode())
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 		} else {
 			// write a file
 			fmt.Println("extracting: " + path)
 			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 			_, err = io.Copy(f, rc)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 			err = f.Close()
 			if err != nil {
-				panic(err)
+				return err
 			}
 		}
 		err = rc.Close()
 		if err != nil {
-			panic(err)
+			return err
 		}
 	}
+
+	return nil
 }
 
-func installModule(sdkPath, binPath string, data model.NodeDist, module model.Module) {
+func installModule(sdkPath, binPath string, data model.NodeDist, module model.Module) error {
 	cmd := exec.Command(filepath.FromSlash(binPath+"/npm"), "install", "-g", module.String())
 	cmd.Env = append(os.Environ(), "PATH="+binPath+fmt.Sprintf("%c", os.PathListSeparator)+os.Getenv("PATH"))
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func cleanSdk(sdkPath string) {
+	err := os.RemoveAll(sdkPath)
 	if err != nil {
 		log.Fatal(err)
 	}
