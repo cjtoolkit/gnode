@@ -78,6 +78,8 @@ func arch() string {
 		return "x86"
 	case "amd64":
 		return "x64"
+	case "arm":
+		return "armv7l"
 	}
 
 	return runtime.GOARCH
