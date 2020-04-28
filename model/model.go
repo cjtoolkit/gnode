@@ -5,6 +5,7 @@ import (
 	"encoding/base32"
 	"fmt"
 	"runtime"
+	"sort"
 )
 
 const (
@@ -33,8 +34,13 @@ func (d NodeDist) FileName() string {
 func (d NodeDist) Hash() string {
 	hash := md5.New()
 	hash.Write([]byte(d.Version))
+	var l []string
 	for _, module := range d.Modules {
-		hash.Write([]byte(module.String()))
+		l = append(l, module.String())
+	}
+	sort.Strings(l)
+	for _, v := range l {
+		hash.Write([]byte(v))
 	}
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil))
 }
