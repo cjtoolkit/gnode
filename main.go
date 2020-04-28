@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 
@@ -20,7 +19,6 @@ func seekGnodeFile() string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	re := regexp.MustCompile(`^([A-Z]:\\)$`)
 	gnode := filepath.FromSlash("/.gnode")
 	lastPath := false
 	for {
@@ -28,7 +26,7 @@ func seekGnodeFile() string {
 			curdir = filepath.Dir(curdir)
 			if lastPath || curdir == "." {
 				log.Fatal("Could not find '.gnode'")
-			} else if strings.Trim(curdir, "/") == "" || re.MatchString(curdir) {
+			} else if strings.Trim(curdir, "/") == "" || (runtime.GOOS == "windows" && len(strings.Trim(curdir, "\\")) == 2) {
 				lastPath = true
 			}
 			continue
