@@ -7,23 +7,46 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strings"
 
 	"github.com/cjtoolkit/gnode/install"
 	"github.com/cjtoolkit/gnode/model"
 )
 
-func main() {
-	if _, err := os.Stat(".gnode"); os.IsNotExist(err) {
-		log.Fatal("'.gnode' file does not exist")
+func seekGnodeFile() string {
+	curdir, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
 	}
+	re := regexp.MustCompile(`^([A-Z]:\\)$`)
+	gnode := filepath.FromSlash("/.gnode")
+	lastPath := false
+	for {
+		if _, err := os.Stat(curdir + gnode); os.IsNotExist(err) {
+			curdir = filepath.Dir(curdir)
+			if lastPath || curdir == "." {
+				log.Fatal("Could not find '.gnode'")
+			} else if strings.Trim(curdir, "/") == "" || re.MatchString(curdir) {
+				lastPath = true
+			}
+			continue
+		}
+		break
+	}
+	return curdir + gnode
+}
+
+func main() {
+	gnodePath := seekGnodeFile()
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	file, err := os.Open(".gnode")
+	file, err := os.Open(gnodePath)
 	if err != nil {
 		log.Fatal(err)
 	}
