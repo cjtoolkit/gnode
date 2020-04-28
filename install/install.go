@@ -44,6 +44,10 @@ func Install(sdkpath, binPath string, data model.NodeDist) {
 		cleanSdk(sdkpath)
 		log.Fatal(err)
 	}
+	if res.StatusCode != http.StatusOK {
+		cleanSdk(sdkpath)
+		log.Fatal("Http Not Ok")
+	}
 
 	if data.Ext() == "zip" {
 		err = zipInstall(res.Body)
