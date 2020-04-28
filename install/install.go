@@ -150,7 +150,8 @@ func zipInstall(file io.Reader) {
 				panic(err)
 			}
 		}
-		if err := rc.Close(); err != nil {
+		err = rc.Close()
+		if err != nil {
 			panic(err)
 		}
 	}
