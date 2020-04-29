@@ -19,6 +19,8 @@ import (
 	"github.com/cjtoolkit/gnode/model"
 )
 
+const cachePath = "/gnode"
+
 func Install(sdkpath, binPath string, data model.NodeDist) {
 	err := os.MkdirAll(sdkpath, 0755)
 	if err != nil {
@@ -38,10 +40,13 @@ func Install(sdkpath, binPath string, data model.NodeDist) {
 		log.Fatal(err)
 	}
 
-	b, err := downloadAndValidate(data)
+	b, err := loadFromCache(data)
 	if err != nil {
-		cleanSdk(sdkpath)
-		log.Fatal(err)
+		b, err = downloadAndValidate(data)
+		if err != nil {
+			cleanSdk(sdkpath)
+			log.Fatal(err)
+		}
 	}
 
 	r := bytes.NewReader(b)
@@ -225,6 +230,61 @@ func downloadAndValidate(data model.NodeDist) ([]byte, error) {
 
 	if bytes.Index(hashBytes, hashAndFile) == -1 {
 		return nil, fmt.Errorf("Checksum mismatch")
+	}
+
+	saveToCache(fileBytes, data)
+
+	return fileBytes, nil
+}
+
+func saveToCache(fileBytes []byte, data model.NodeDist) {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	cacheDir += filepath.FromSlash(cachePath)
+	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+		err = os.MkdirAll(cacheDir, 0755)
+	}
+
+	file, err := os.OpenFile(cacheDir+filepath.FromSlash("/"+data.FileName()), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	_, err = file.Write(fileBytes)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	err = file.Chdir()
+	if err != nil {
+		log.Print(err)
+		return
+	}
+}
+
+func loadFromCache(data model.NodeDist) ([]byte, error) {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return nil, err
+	}
+
+	cacheFileName := cacheDir + filepath.FromSlash(cachePath+"/"+data.FileName())
+	if _, err := os.Stat(cacheFileName); os.IsNotExist(err) {
+		return nil, err
+	}
+
+	file, err := os.Open(cacheFileName)
+	if err != nil {
+		return nil, err
+	}
+
+	fileBytes, err := ioutil.ReadAll(file)
+	if err != nil {
+		return nil, err
 	}
 
 	return fileBytes, nil
