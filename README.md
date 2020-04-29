@@ -8,6 +8,11 @@ Project Level NodeJs version manager.
 $ go get github.com/cjtoolkit/gnode
 ```
 
+If you haven't got go installed, you can use the pre compiled binary instead  
+https://github.com/cjtoolkit/gnode/releases  
+Rename it to gnode or gnode.exe (if windows) and add it to the path
+(e.g. `/usr/bin`).
+
 ## Using Gnode
 
 Create `.gnode` in the root of the project, with the example below.
