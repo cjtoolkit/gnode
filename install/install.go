@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/gzip"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -37,22 +38,18 @@ func Install(sdkpath, binPath string, data model.NodeDist) {
 		log.Fatal(err)
 	}
 
-	client := &http.Client{}
-	client.Timeout = 30 * time.Second
-	res, err := client.Get(data.DistUrl())
+	b, err := downloadAndValidate(data)
 	if err != nil {
 		cleanSdk(sdkpath)
 		log.Fatal(err)
 	}
-	if res.StatusCode != http.StatusOK {
-		cleanSdk(sdkpath)
-		log.Fatal("Http Not Ok")
-	}
+
+	r := bytes.NewReader(b)
 
 	if data.Ext() == "zip" {
-		err = zipInstall(res.Body)
+		err = zipInstall(r, int64(len(b)))
 	} else {
-		err = tarInstall(res.Body)
+		err = tarInstall(r)
 	}
 	if err != nil {
 		cleanSdk(sdkpath)
@@ -60,7 +57,7 @@ func Install(sdkpath, binPath string, data model.NodeDist) {
 	}
 
 	for _, module := range data.Modules {
-		err = installModule(sdkpath, binPath, data, module)
+		err = installModule(binPath, module)
 		if err != nil {
 			cleanSdk(sdkpath)
 			log.Fatal(err)
@@ -119,13 +116,8 @@ func tarInstall(file io.Reader) error {
 	return nil
 }
 
-func zipInstall(file io.Reader) error {
-	b, err := ioutil.ReadAll(file)
-	if err != nil {
-		return err
-	}
-
-	r, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
+func zipInstall(rr io.ReaderAt, size int64) error {
+	r, err := zip.NewReader(rr, size)
 	if err != nil {
 		return err
 	}
@@ -175,7 +167,7 @@ func zipInstall(file io.Reader) error {
 	return nil
 }
 
-func installModule(sdkPath, binPath string, data model.NodeDist, module model.Module) error {
+func installModule(binPath string, module model.Module) error {
 	cmd := exec.Command(filepath.FromSlash(binPath+"/npm"), "install", "-g", module.String())
 	cmd.Env = append(os.Environ(), "PATH="+binPath+fmt.Sprintf("%c", os.PathListSeparator)+os.Getenv("PATH"))
 	cmd.Stderr = os.Stderr
@@ -193,4 +185,47 @@ func cleanSdk(sdkPath string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func downloadAndValidate(data model.NodeDist) ([]byte, error) {
+	client := &http.Client{}
+	client.Timeout = 30 * time.Second
+
+	resFile, err := client.Get(data.DistUrl())
+	if err != nil {
+		return nil, err
+	} else if resFile.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Could not find specific version")
+	}
+
+	fileBytes, err := ioutil.ReadAll(resFile.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	resHash, err := client.Get(data.DistSumUrl())
+	if err != nil {
+		return nil, err
+	} else if resFile.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Could not file checksum file")
+	}
+
+	hashBytes, err := ioutil.ReadAll(resHash.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	fileHash := func() []byte {
+		hash := sha256.New()
+		hash.Write(fileBytes)
+		return hash.Sum(nil)
+	}()
+
+	hashAndFile := []byte(fmt.Sprintf("%x  %s", fileHash, data.FileName()))
+
+	if bytes.Index(hashBytes, hashAndFile) == -1 {
+		return nil, fmt.Errorf("Checksum mismatch")
+	}
+
+	return fileBytes, nil
 }

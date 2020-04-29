@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	nodeDistUrl = "https://nodejs.org/dist/v%[1]s/node-v%[1]s-%[2]s-%[3]s.%[4]s"
-	dirName     = "node-v%[1]s-%[2]s-%[3]s"
-	hashDirName = "node-v%[1]s-%[2]s"
+	nodeDistUrl    = "https://nodejs.org/dist/v%[1]s/node-v%[1]s-%[2]s-%[3]s.%[4]s"
+	nodeDistSumUrl = "https://nodejs.org/dist/v%[1]s/SHASUMS256.txt"
+	dirName        = "node-v%[1]s-%[2]s-%[3]s"
+	hashDirName    = "node-v%[1]s-%[2]s"
 )
 
 type NodeDist struct {
@@ -21,6 +22,10 @@ type NodeDist struct {
 
 func (d NodeDist) DistUrl() string {
 	return fmt.Sprintf(nodeDistUrl, d.Version, os(), arch(), ext())
+}
+
+func (d NodeDist) DistSumUrl() string {
+	return fmt.Sprintf(nodeDistSumUrl, d.Version)
 }
 
 func (d NodeDist) Dir() string {
