@@ -127,18 +127,13 @@ func zipInstall(rr io.ReaderAt, size int64) error {
 		return err
 	}
 
-	dest, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
 	for _, f := range r.File {
 		rc, err := f.Open()
 		if err != nil {
 			return err
 		}
 
-		path := filepath.Join(dest, f.Name)
+		path := f.Name
 
 		if f.FileInfo().IsDir() {
 			// create a directory

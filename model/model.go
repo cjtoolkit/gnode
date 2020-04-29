@@ -2,7 +2,6 @@ package model
 
 import (
 	"crypto/md5"
-	"encoding/base32"
 	"fmt"
 	"runtime"
 	"sort"
@@ -12,7 +11,7 @@ const (
 	nodeDistUrl    = "https://nodejs.org/dist/v%[1]s/node-v%[1]s-%[2]s-%[3]s.%[4]s"
 	nodeDistSumUrl = "https://nodejs.org/dist/v%[1]s/SHASUMS256.txt"
 	dirName        = "node-v%[1]s-%[2]s-%[3]s"
-	hashDirName    = "node-v%[1]s-%[2]s"
+	hashDirName    = "node-v%[1]s/%[2]s"
 )
 
 type NodeDist struct {
@@ -45,7 +44,7 @@ func (d NodeDist) Hash() string {
 	for _, v := range l {
 		hash.Write([]byte(v))
 	}
-	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(hash.Sum(nil))
+	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
 func (d NodeDist) DirHash() string {
