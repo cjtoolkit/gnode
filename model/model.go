@@ -32,9 +32,7 @@ func (d NodeDist) Dir() string {
 	return fmt.Sprintf(dirName, d.Version, os(), arch())
 }
 
-func (d NodeDist) FileName() string {
-	return fmt.Sprintf(dirName, d.Version, os(), arch()) + "." + ext()
-}
+func (d NodeDist) FileName() string { return d.Dir() + "." + ext() }
 
 func (d NodeDist) Hash() string {
 	hash := md5.New()
