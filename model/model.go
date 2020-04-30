@@ -16,6 +16,7 @@ const (
 
 type NodeDist struct {
 	Version string   `json:"version"`
+	NoNpm   bool     `json:"no_npm"`
 	Modules []Module `json:"modules"`
 }
 
@@ -36,6 +37,9 @@ func (d NodeDist) FileName() string { return d.Dir() + "." + ext() }
 func (d NodeDist) Hash() string {
 	hash := md5.New()
 	hash.Write([]byte(d.Version))
+	if d.NoNpm {
+		hash.Write([]byte("no-npm"))
+	}
 	var l []string
 	for _, module := range d.Modules {
 		l = append(l, module.String())

@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/cjtoolkit/gnode/npm"
+
 	"github.com/cjtoolkit/gnode/install"
 	"github.com/cjtoolkit/gnode/model"
 )
@@ -57,6 +59,7 @@ func main() {
 	}
 
 	sdkPath := homeDir + filepath.FromSlash("/sdk/"+data.DirHash())
+	fmt.Println(sdkPath)
 
 	binPath := sdkPath + filepath.FromSlash("/"+data.Dir())
 	if runtime.GOOS != "windows" {
@@ -65,6 +68,9 @@ func main() {
 
 	if _, err := os.Stat(sdkPath); os.IsNotExist(err) {
 		install.Install(sdkPath, binPath, data)
+		if data.NoNpm {
+			npm.Remove(binPath)
+		}
 	}
 
 	if len(os.Args) <= 1 {
