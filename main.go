@@ -59,7 +59,6 @@ func main() {
 	}
 
 	sdkPath := homeDir + filepath.FromSlash("/sdk/"+data.DirHash())
-	fmt.Println(sdkPath)
 
 	binPath := sdkPath + filepath.FromSlash("/"+data.Dir())
 	if runtime.GOOS != "windows" {
