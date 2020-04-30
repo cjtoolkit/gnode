@@ -41,8 +41,9 @@ automatically, along with the modules specified in `.gnode`.
 
 ## Note
 
+You add add `"no_npm": true` to the root of .gnode and that will strip
+out npm after installation. 
+
 It's currently compatible with Windows, Linux and Mac.
 
 Mac has not been tested, yet.
-
-This is still in prototype stage.
